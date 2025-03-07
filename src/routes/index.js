@@ -18,14 +18,20 @@ const Addnewusers = lazy(() => import("../pages/admin/Addnewuser"));
 const Tracking = lazy(() => import("../pages/admin/TrackRequest"));
 const Addnewmapping = lazy(() => import("../pages/admin/MapTracking"));
 const IssuesTracking = lazy(() => import("../pages/admin/IssuesTracking"));
-const Addnewissues = lazy(()=> import("../pages/admin/Addnewissues"));
+const Addnewissues = lazy(() => import("../pages/admin/Addnewissues"));
 const TechnicianHome = lazy(() => import("../pages/technician/Home"));
 const UserHome = lazy(() => import("../pages/technician/UsersHome"));
+const ManageStocks = lazy(() => import("../pages/admin/ManageStocks"));
+const Addstocks = lazy(() => import("../pages/admin/Addnewstock"));
+const Consumestocks = lazy(() => import("../pages/technician/ConsumeStock"));
 
 const routes = [
-  {path:"/user-home", component: UserHome},
-  {path:"/technician-home", component: TechnicianHome},
-  {path:"/add-new-issues", component: Addnewissues},
+  { path: "/consume-stocks", component: Consumestocks },
+  { path: "/add-new-stock", component: Addstocks },
+  { path: "/manage-stocks", component: ManageStocks },
+  { path: "/user-home", component: UserHome },
+  { path: "/technician-home", component: TechnicianHome },
+  { path: "/add-new-issues", component: Addnewissues },
   { path: "/view-issues", component: IssuesTracking },
   { path: "/add-new-mapping", component: Addnewmapping },
   { path: "/track-request", component: Tracking },

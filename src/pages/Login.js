@@ -1,12 +1,58 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
-
-import ImageLight from '../assets/img/login-office.jpeg'
-import ImageDark from '../assets/img/login-office-dark.jpeg'
-import { GithubIcon, TwitterIcon } from '../icons'
+import { Link,useHistory } from 'react-router-dom'
 import { Label, Input, Button } from '@windmill/react-ui'
+import Logo from "../assets/logo/logo.png";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
 
 function Login() {
+  const navigate = useHistory();
+  const onSuccess = async (credentialResponse) => {
+    const decoded = jwtDecode(credentialResponse.credential);
+    try {
+      const response = await fetch("http://localhost:8080/signin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: decoded.email }),
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        const { userID, token, role, username,department } = userData;
+        console.log("Login Success! User Email:", decoded.email);
+
+        localStorage.setItem("email", decoded.email);
+        localStorage.setItem("token", token);
+        localStorage.setItem("facultyID", userID);
+        localStorage.setItem("role", role);
+        localStorage.setItem("Name", username);
+        localStorage.setItem("department", department);
+        
+        if(role ==="0"){
+          navigate.push("/app/login");
+        }
+        if(role ==="1"){
+          navigate.push("/app/home");
+        }
+        else if(role==="3"){
+          navigate.push("/app/user-home");
+        }
+        else{
+        navigate.push("/app/technician-home");
+        }
+      } else {
+        console.log("Failed to send email to the API.");
+      }
+    } catch (e) {
+      console.log("Error:", e);
+    }
+  };
+
+  const onError = () => {
+    console.log("Login Failed");
+  };
   return (
     <div className="flex items-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
       <div className="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white rounded-lg shadow-xl dark:bg-gray-800">
@@ -15,14 +61,14 @@ function Login() {
             <img
               aria-hidden="true"
               className="object-cover w-full h-full dark:hidden"
-              src={ImageLight}
-              alt="Office"
+              src={Logo}
+              alt="PCB"
             />
             <img
               aria-hidden="true"
               className="hidden object-cover w-full h-full dark:block"
-              src={ImageDark}
-              alt="Office"
+              src={Logo}
+              alt="PCB"
             />
           </div>
           <main className="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
@@ -44,31 +90,11 @@ function Login() {
 
               <hr className="my-8" />
 
-              <Button block layout="outline">
-                <GithubIcon className="w-4 h-4 mr-2" aria-hidden="true" />
-                Github
-              </Button>
-              <Button className="mt-4" block layout="outline">
-                <TwitterIcon className="w-4 h-4 mr-2" aria-hidden="true" />
-                Twitter
-              </Button>
-
-              <p className="mt-4">
-                <Link
-                  className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                  to="/forgot-password"
-                >
-                  Forgot your password?
-                </Link>
-              </p>
-              <p className="mt-1">
-                <Link
-                  className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                  to="/create-account"
-                >
-                  Create account
-                </Link>
-              </p>
+              <GoogleOAuthProvider clientId="725126186893-acn5v8i45jtvbhgklbliei89tu1jdvst.apps.googleusercontent.com">
+                <div className="flex justify-center">
+                  <GoogleLogin onSuccess={onSuccess} onError={onError} />
+                </div>
+              </GoogleOAuthProvider>
             </div>
           </main>
         </div>

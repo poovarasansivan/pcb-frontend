@@ -19,40 +19,65 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from "@windmill/react-ui";
 import { Label } from "@windmill/react-ui";
 import { CiCirclePlus } from "react-icons/ci";
 import { Link, useHistory } from "react-router-dom";
-
-const projectRequest = [
-  {
-    req_id: "PCBR-001",
-    faculty_id: "FAC-001",
-    faculty_name: "Dr. John Doe",
-    department: "Computer Science",
-    project_name: "Automated Attendance System",
-    project_description:
-      "This project aims to automate the attendance system of the university",
-    design_tool: "Arduino",
-    no_of_students: "5",
-    urgency_level: "High",
-    contact: "faculty@gmail.com",
-    design_file: "file.pdf",
-    status: "Pending",
-  },
-];
+import axios from "axios";
+import { IoNotificationsOutline } from "react-icons/io5";
+import NotificationModal from "./RequestNotification";
+import { CSVLink } from "react-csv";
+import { FaDownload } from "react-icons/fa6";
 
 function ProjectRequest() {
-  const [facultyRequests, setFacultyRequests] = useState(projectRequest);
+  const [facultyRequests, setFacultyRequests] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isNotificationModalOpen, setisNotificationModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [rowDataToEdit, setRowDataToEdit] = useState(null);
   const [editedData, setEditedData] = useState({});
   const history = useHistory();
   const resultsPerPage = 8;
-  const totalResults = facultyRequests.length;
-
+  const totalResults = facultyRequests.length||0;
+  const headers = [
+    { label: "Request ID", key: "req_id" },
+    { label: "Faculty ID", key: "faculty_id" },
+    { label: "Faculty Name", key: "faculty_name" },
+    { label: "Department", key: "department" },
+    { label: "Project Name", key: "project_name" },
+    { label: "Project Description", key: "project_description" },
+    { label: "Design Tool", key: "design_tool" },
+    { label: "No. of Students", key: "number_of_students" },
+    { label: "Urgency Level", key: "urgency_level" },
+    { label: "Contact", key: "contact" },
+    { label: "Design File", key: "design_file" },
+    { label: "Status", key: "status" },
+  ];
   const [page, setPage] = useState(1);
-
+  const token = localStorage.getItem("token");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:8080/protected/get-project-requests",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (response.data !== null) {
+          setFacultyRequests(response.data);
+          setFilteredData(response.data);
+        } else {
+          setFacultyRequests([]);
+          setFilteredData([]);
+        }
+      } catch (error) {
+        console.log("Error fetching data:", error);
+        setFacultyRequests([]);
+        setFilteredData([]);
+      }
+    };
+    fetchData();
+  }, []);
+  
   useEffect(() => {
     setFilteredData(
       facultyRequests.filter((request) => {
@@ -124,15 +149,15 @@ function ProjectRequest() {
     setIsEditModalOpen(false);
   }
 
-  function openDeleteModal(rowData) {
+  function openNotificationModal(rowData) {
     setRowDataToEdit(rowData);
-    setIsDeleteModalOpen(true);
+    setisNotificationModalOpen(true);
   }
   const handleAddnew = () => {
     history.push("/app/add-new-request");
   };
   function closeDeleteModal() {
-    setIsDeleteModalOpen(false);
+    setisNotificationModalOpen(false);
   }
 
   function handleUpdate() {
@@ -144,14 +169,56 @@ function ProjectRequest() {
     setFacultyRequests(updatedRequests);
     closeEditModal();
   }
+  const handleFileUpload = async (event, req_id) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-  function handleDelete() {
-    const updatedRequests = facultyRequests.filter(
-      (request) => request.req_id !== rowDataToEdit.req_id
-    );
-    setFacultyRequests(updatedRequests);
-    closeDeleteModal();
-  }
+    const formData = new FormData();
+    formData.append("UploadGerberFile", file);
+
+    try {
+      // Step 1: Upload file to server
+      const uploadResponse = await axios.post(
+        "http://localhost:8080/protected/upload-gerber-file",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (uploadResponse.status === 200) {
+        const filename = uploadResponse.data.filename; // Get filename from response
+
+        // Step 2: Update project with new filename
+        await axios.put(
+          "http://localhost:8080/protected/update-project-data",
+          {
+            req_id: req_id,
+            design_file: filename,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        // Update UI with new file
+        const updatedRequests = facultyRequests.map((request) =>
+          request.req_id === req_id
+            ? { ...request, design_file: filename }
+            : request
+        );
+        setFacultyRequests(updatedRequests);
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+    }
+  };
+
 
   function handlePageChange(p) {
     setPage(p);
@@ -162,8 +229,31 @@ function ProjectRequest() {
   }
 
   const handleRequestApproval = async (req_id, status) => {
-    console.log(req_id, status);
+    try {
+      const response = await axios.put(
+        "http://localhost:8080/protected/update-project-request",
+        {
+          req_id: req_id,
+          req_status: status,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (response.status === 200) {
+        const updatedRequests = facultyRequests.map((request) =>
+          request.req_id === req_id ? { ...request, status: status } : request
+        );
+        setFacultyRequests(updatedRequests);
+        setIsViewModalOpen(false);
+      }
+    } catch (error) {
+      console.log("error", error);
+    }
   };
+  const role = localStorage.getItem("role");
 
   return (
     <>
@@ -179,10 +269,32 @@ function ProjectRequest() {
             />
           </div>
           <div className="flex flex-row">
-            <Button onClick={handleAddnew}>
+            {role==="3" && (
+              <Button onClick={handleAddnew}>
               <CiCirclePlus size={24} className="mr-2 font-bold" />
               Add New
             </Button>
+            )}
+            {(role === "1" || role === "2") && (
+              <CSVLink
+                data={filteredData.map((request) => ({
+                  ...request,
+                  status:
+                    request.status === "1"
+                      ? "Approved"
+                      : request.status === "2"
+                      ? "Rejected"
+                      : "Pending",
+                }))}
+                headers={headers}
+                filename="Project-Requests.csv"
+                className="ml-4"
+              >
+                <Button size="large">
+                  <FaDownload size={20} className="mr-2" /> Export
+                </Button>
+              </CSVLink>
+            )}
           </div>
         </div>
         <hr className="border-t-1 w-full" />
@@ -219,14 +331,14 @@ function ProjectRequest() {
                   <TableCell>{request.project_name}</TableCell>
                   <TableCell>{request.project_description}</TableCell>
                   <TableCell>{request.design_tool}</TableCell>
-                  <TableCell>{request.no_of_students}</TableCell>
+                  <TableCell>{request.number_of_students}</TableCell>
                   <TableCell>{request.urgency_level}</TableCell>
                   <TableCell>{request.contact}</TableCell>
                   <TableCell>{request.design_file}</TableCell>
                   <TableCell>
-                    {request.status === "1" ? (
+                    {request.req_status === "1" ? (
                       <Badge type="success">Approved</Badge>
-                    ) : request.status === "2" ? (
+                    ) : request.req_status === "2" ? (
                       <Badge type="danger">Rejected</Badge>
                     ) : (
                       <Badge type="warning">Pending</Badge>
@@ -242,8 +354,7 @@ function ProjectRequest() {
                       >
                         <IoMdEye className="w-5 h-5" />
                       </Button>
-
-                      <>
+                      {(request.req_status === "2" && role==="3") && (
                         <Button
                           layout="link"
                           size="icon"
@@ -252,15 +363,19 @@ function ProjectRequest() {
                         >
                           <EditIcon className="w-5 h-5" />
                         </Button>
-                        <Button
-                          layout="link"
-                          size="icon"
-                          aria-label="Delete"
-                          onClick={() => openDeleteModal(request)}
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </Button>
-                      </>
+                      )}
+                      {role === "1" && (
+                        <>
+                          <Button
+                            layout="link"
+                            size="icon"
+                            aria-label="Delete"
+                            onClick={() => openNotificationModal(request)}
+                          >
+                            <IoNotificationsOutline className="w-5 h-5" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -287,9 +402,7 @@ function ProjectRequest() {
           <Input
             type="file"
             name="design_file"
-            onChange={(e) =>
-              setEditedData({ ...editedData, design_file: e.target.files[0] })
-            }
+            onChange={(e) => handleFileUpload(e, rowDataToEdit.req_id)}
           />
         </ModalBody>
         <ModalFooter>
@@ -301,16 +414,13 @@ function ProjectRequest() {
       </Modal>
 
       {/* Delete Modal */}
-      <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal}>
-        <ModalHeader>Confirm Deletion</ModalHeader>
-        <ModalBody>Are you sure you want to delete this request?</ModalBody>
-        <ModalFooter>
-          <Button layout="link" onClick={closeDeleteModal}>
-            Cancel
-          </Button>
-          <Button onClick={handleDelete}>Delete</Button>
-        </ModalFooter>
-      </Modal>
+      {isNotificationModalOpen && (
+        <NotificationModal
+          isOpen={isNotificationModalOpen}
+          onClose={closeDeleteModal}
+          rowData={rowDataToEdit}
+        />
+      )}
 
       {/* View Modal */}
       <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)}>
@@ -347,7 +457,7 @@ function ProjectRequest() {
           </div>
           <div className="flex flex-row">
             <p className="text-sm font-medium">No of Students: </p>
-            <p className="ml-2">{rowDataToEdit?.no_of_students}</p>
+            <p className="ml-2">{rowDataToEdit?.number_of_students}</p>
           </div>
           <div className="flex flex-row">
             <p className="text-sm font-medium mr-2">Urgency Level: </p>
@@ -360,13 +470,23 @@ function ProjectRequest() {
           <div className="flex flex-row">
             <p className="text-sm font-medium">Design File: </p>
             <p className="ml-2">{rowDataToEdit?.design_file}</p>
+
+            {rowDataToEdit?.design_file && (
+              <a
+                href={`http://localhost:8080/serve-gerber-file/${rowDataToEdit.design_file}`}
+                target="_blank"
+                className="ml-2 text-blue-500 underline"
+              >
+                View Gerber
+              </a>
+            )}
           </div>
           <div className="flex flex-row">
             <p className="text-sm font-medium">Status: </p>
             <p className="ml-2">
-              {rowDataToEdit?.status === "1" ? (
+              {rowDataToEdit?.req_status === "1" ? (
                 <Badge type="success">Approved</Badge>
-              ) : rowDataToEdit?.status === "2" ? (
+              ) : rowDataToEdit?.req_status === "2" ? (
                 <Badge type="danger">Rejected</Badge>
               ) : (
                 <Badge type="warning">Pending</Badge>
@@ -375,22 +495,24 @@ function ProjectRequest() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <>
-            <Button
-              layout="link"
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-              onClick={() => handleRequestApproval(rowDataToEdit.req_id, "1")}
-            >
-              <p className="text-white">Approve</p>
-            </Button>
-            <Button
-              layout="link"
-              className="bg-red-600 text-white hover:bg-red-700"
-              onClick={() => handleRequestApproval(rowDataToEdit.req_id, "2")}
-            >
-              <p className="text-white">Reject</p>
-            </Button>
-          </>
+          {role === "1" && (
+            <>
+              <Button
+                layout="link"
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                onClick={() => handleRequestApproval(rowDataToEdit.req_id, "1")}
+              >
+                <p className="text-white">Approve</p>
+              </Button>
+              <Button
+                layout="link"
+                className="bg-red-600 text-white hover:bg-red-700"
+                onClick={() => handleRequestApproval(rowDataToEdit.req_id, "2")}
+              >
+                <p className="text-white">Reject</p>
+              </Button>
+            </>
+          )}
 
           <Button
             layout="link"

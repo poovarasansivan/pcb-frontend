@@ -30,8 +30,10 @@ import { CiSquareQuestion } from "react-icons/ci";
 import { CiUser } from "react-icons/ci";
 import { RiProgress5Line } from "react-icons/ri";
 import { AiOutlineIssuesClose } from "react-icons/ai";
+import { CgComponents } from "react-icons/cg";
 
 export {
+  CgComponents,
   AiOutlineIssuesClose,
   RiProgress5Line,
   CiUser,

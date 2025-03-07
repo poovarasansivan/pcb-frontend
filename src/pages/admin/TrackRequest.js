@@ -12,35 +12,25 @@ import {
   Pagination,
   Input,
 } from "@windmill/react-ui";
+import { CSVLink } from "react-csv";
+import { FaDownload } from "react-icons/fa6";
 import { IoMdEye } from "react-icons/io";
 import { EditIcon, TrashIcon } from "../../icons";
 import PageTitle from "../../components/Typography/PageTitle";
-import { Modal, ModalHeader, ModalBody, ModalFooter } from "@windmill/react-ui";
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Select,
+} from "@windmill/react-ui";
 import { CiCirclePlus } from "react-icons/ci";
 import { Link, useHistory } from "react-router-dom";
-
-const manufacturingrequest = [
-  {
-    project_id: "PCBR-001",
-    project_name: "Automated Attendance System",
-    project_description:
-      "This project aims to automate the attendance system of the university",
-    faculty_id: "FAC-001",
-    faculty_name: "Dr. John Doe",
-    department: "Computer Science",
-    design_tool: "Arduino",
-    no_of_students: "5",
-    urgency_level: "High",
-    contact: "faculty@gmail.com",
-    design_file: "file.pdf",
-    technician_id: "TECH-001",
-    technician_name: "Mr. Technician",
-    manufacturing_status: "0",
-  },
-];
+import axios from "axios";
+import { Label } from "@windmill/react-ui";
 
 function ProjectRequest() {
-  const [facultyRequests, setFacultyRequests] = useState(manufacturingrequest);
+  const [facultyRequests, setFacultyRequests] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -50,74 +40,52 @@ function ProjectRequest() {
   const [editedData, setEditedData] = useState({});
   const history = useHistory();
   const resultsPerPage = 8;
-  const totalResults = facultyRequests.length;
-
+  const totalResults = facultyRequests?.length || 0;
+  const headers = [
+    { label: "Project ID", key: "project_id" },
+    { label: "Project Name", key: "project_name" },
+    { label: "Project Description", key: "project_description" },
+    { label: "Faculty ID", key: "faculty_id" },
+    { label: "Faculty Name", key: "faculty_name" },
+    { label: "Department", key: "department" },
+    { label: "Design Tool", key: "design_tool" },
+    { label: "No of Students", key: "no_of_students" },
+    { label: "Urgency Level", key: "urgency_level" },
+    { label: "Contact", key: "contact" },
+    { label: "Design File", key: "design_file" },
+    { label: "Technician ID", key: "techician_id" },
+    { label: "Technician Name", key: "techician_name" },
+    { label: "Manufacturing Budget", key: "manufacturing_budget" },
+    { label: "Status", key: "status" },
+  ];
   const [page, setPage] = useState(1);
+  const role = localStorage.getItem("role");
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
-    setFilteredData(
-      facultyRequests.filter((request) => {
-        const statusText =
-          request.status === "1"
-            ? "On Progress"
-            : request.status === "2"
-            ? "Completed"
-            : "Pending";
-        return facultyRequests.filter(
-          (request) =>
-            (request.project_id &&
-              request.project_id
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.project_description &&
-              request.project_description
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.faculty_id &&
-              request.faculty_id
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.faculty_name &&
-              request.faculty_name
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.department &&
-              request.department
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.project_name &&
-              request.project_name
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.design_file &&
-              request.design_file
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.urgency_level &&
-              request.urgency_level
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.contact &&
-              request.contact
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.design_tool &&
-              request.design_tool
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.technician_id &&
-              request.technician_id
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            (request.technician_name &&
-              request.technician_name
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase())) ||
-            statusText.toLowerCase().includes(searchTerm.toLowerCase())
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:8080/protected/get-projects",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
-      })
-    );
-  }, [searchTerm, facultyRequests]);
+        if (response.data) {
+          setFacultyRequests(response.data);
+          setFilteredData(response.data);
+        } else {
+          setFacultyRequests([]);
+          setFilteredData([]);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchData();
+  }, []);
 
   function openEditModal(rowData) {
     setRowDataToEdit(rowData);
@@ -144,16 +112,71 @@ function ProjectRequest() {
     setIsDeleteModalOpen(false);
   }
 
-  function handleUpdate() {
-    const updatedRequests = facultyRequests.map((request) =>
-      request.project_id === rowDataToEdit.project_id
-        ? { ...request, ...editedData }
-        : request
-    );
-    setFacultyRequests(updatedRequests);
-    closeEditModal();
-  }
+  async function handleUpdate() {
+    if (!rowDataToEdit) return;
 
+    const updatedData = {
+      project_id: rowDataToEdit.project_id,
+      manufacturing_budget: parseInt( editedData.manufacturing_budget || rowDataToEdit.manufacturing_budget),
+      status: editedData.status,
+    };
+
+    try {
+      const response = await axios.put(
+        "http://localhost:8080/protected/update-manufacturing-request",
+        updatedData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 200) {
+        const updatedRequests = facultyRequests.map((request) =>
+          request.project_id === rowDataToEdit.project_id
+            ? { ...request, ...updatedData }
+            : request
+        );
+        setFacultyRequests(updatedRequests);
+        closeEditModal();
+      }
+    } catch (error) {
+      console.error("Error updating data:", error);
+    }
+  }
+  
+  useEffect(() => {
+    setFilteredData(
+      facultyRequests.filter((request) =>
+        [
+          request.project_id,
+          request.project_name,
+          request.project_description,
+          request.faculty_id,
+          request.faculty_name,
+          request.department,
+          request.design_tool,
+          request.urgency_level,
+          request.contact,
+          request.design_file,
+          request.techician_id,
+          request.techician_name,
+          request.status,
+        ]
+          .concat(
+            // Convert numerical values to strings before searching
+            [
+              request.no_of_students,
+              request.manufacturing_budget,
+            ].map((val) => String(val))
+          )
+          .some((field) => field?.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    );
+  }, [searchTerm, facultyRequests]);
+  
   function handleDelete() {
     const updatedRequests = facultyRequests.filter(
       (request) => request.project_id !== rowDataToEdit.project_id
@@ -170,13 +193,10 @@ function ProjectRequest() {
     setSearchTerm(event.target.value);
   }
 
-  const handleRequestApproval = async (project_id, manufacturing_status) => {
-    console.log(project_id, manufacturing_status);
-  };
-
+  
   return (
     <>
-      <PageTitle>Track Project Manufacturing  </PageTitle>
+      <PageTitle>Track Project Manufacturing </PageTitle>
 
       <TableContainer className="mb-8">
         <div className="m-4 flex justify-between items-center">
@@ -188,10 +208,52 @@ function ProjectRequest() {
             />
           </div>
           <div className="flex flex-row">
-            <Button onClick={handleAddnew}>
-              <CiCirclePlus size={24} className="mr-2 font-bold" />
+           {role==="1"&&(
+            <Button onClick={handleAddnew} className="mr-4">
+              <CiCirclePlus size={24} className="mr-4 font-bold" />
               Add New
             </Button>
+            
+           )}
+           {role==="1"&&(
+            <CSVLink
+              data={filteredData.map((request) => ({
+                ...request,
+                status:
+                  request.status === "1"
+                    ? "On Progress"
+                    : request.status === "12"
+                    ? "Completed"
+                    : request.status === "2"
+                    ? "Material Preparation"
+                    : request.status === "3"
+                    ? "Inner Layer Processing"
+                    : request.status === "4"
+                    ? "Layer Lamination"
+                    : request.status === "5"
+                    ? "Drilling & Plating"
+                    : request.status === "6"
+                    ? "Outer Layer Processing"
+                    : request.status === "7"
+                    ? "Solder Mask & Silkscreen Application"
+                    : request.status === "8"
+                    ? "Surface Finishing"
+                    : request.status === "9"
+                    ? "Electrical Testing & Inspection"
+                    : request.status === "10"
+                    ? "PCB Cutting & Routing"
+                    : request.status === "11"
+                    ? "Final Inspection & Packaging"
+                    : "Pending",
+              }))}
+              headers={headers}
+              filename={"Project_Manufacturing_Status.csv"}
+            >
+              <Button size="large">
+                <FaDownload size={20} className="mr-2" /> Export
+              </Button>
+            </CSVLink>
+           )}
           </div>
         </div>
         <hr className="border-t-1 w-full" />
@@ -213,6 +275,7 @@ function ProjectRequest() {
               <TableCell>Design</TableCell>
               <TableCell>Technician ID</TableCell>
               <TableCell>Technician Name</TableCell>
+              <TableCell>Manufacturing Budget</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
             </tr>
@@ -234,13 +297,34 @@ function ProjectRequest() {
                   <TableCell>{request.urgency_level}</TableCell>
                   <TableCell>{request.contact}</TableCell>
                   <TableCell>{request.design_file}</TableCell>
-                  <TableCell>{request.technician_id}</TableCell>
-                  <TableCell>{request.technician_name}</TableCell>
+                  <TableCell>{request.techician_id}</TableCell>
+                  <TableCell>{request.techician_name}</TableCell>
+                  <TableCell>{request.manufacturing_budget}</TableCell>
                   <TableCell>
-                    {request.manufacturing_status === "1" ? (
-                      <Badge type="danger">On Progress</Badge>
-                    ) : request.status === "2" ? (
+                    {request.status === "1" ? (
+                      <Badge type="warning">On Progress</Badge>
+                    ) : request.status === "12" ? (
                       <Badge type="success">Completed</Badge>
+                    ) : request.status === "2" ? (
+                      <Badge type="warning">Material Preparation</Badge>
+                    ) : request.status === "3" ? (
+                      <Badge type="warning">Inner Layer Processing</Badge>
+                    ) : request.status === "4" ? (
+                      <Badge type="warning">Layer Lamination</Badge>
+                    ) : request.status === "5" ? (
+                      <Badge type="warning">Drilling & Plating</Badge>
+                    ) : request.status === "6" ? (
+                      <Badge type="warning">Outer Layer Processing</Badge>
+                    ) : request.status === "7" ? (
+                      <Badge type="warning">Solder Mask & Silkscreen Application</Badge>
+                    ) : request.status === "8" ? (
+                      <Badge type="warning">Surface Finishing</Badge>
+                    ) : request.status === "9" ? (
+                      <Badge type="warning">Electrical Testing & Inspection</Badge>
+                    ) : request.status === "10" ? (
+                      <Badge type="warning">PCB Cutting & Routing</Badge>
+                    ) : request.status === "11" ? (
+                      <Badge type="warning">Final Inspection & Packaging</Badge>
                     ) : (
                       <Badge type="warning">Pending</Badge>
                     )}
@@ -255,9 +339,8 @@ function ProjectRequest() {
                       >
                         <IoMdEye className="w-5 h-5" />
                       </Button>
-
-                      <>
-                        <Button
+                        {role==="2"&&(
+                          <Button
                           layout="link"
                           size="icon"
                           aria-label="Edit"
@@ -265,7 +348,9 @@ function ProjectRequest() {
                         >
                           <EditIcon className="w-5 h-5" />
                         </Button>
-                        <Button
+                        )}
+                        {role==="1"&&(
+                          <Button
                           layout="link"
                           size="icon"
                           aria-label="Delete"
@@ -273,7 +358,8 @@ function ProjectRequest() {
                         >
                           <TrashIcon className="w-5 h-5" />
                         </Button>
-                      </>
+                        )}
+                 
                     </div>
                   </TableCell>
                 </TableRow>
@@ -303,6 +389,55 @@ function ProjectRequest() {
         </ModalFooter>
       </Modal>
 
+      {/* Edit Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={closeEditModal}>
+        <ModalHeader>Edit Request</ModalHeader>
+        <ModalBody>
+          <Label> Budget</Label>
+          <Input
+            className="mt-1"
+            placeholder="Enter Budget"
+            value={
+              editedData.manufacturing_budget ||
+              rowDataToEdit?.manufacturing_budget
+            }
+            onChange={(e) =>
+              setEditedData({
+                ...editedData,
+                manufacturing_budget: e.target.value,
+              })
+            }
+          />
+          <Label> Status</Label>
+          <Select
+            className="mt-1"
+            value={editedData.status || rowDataToEdit?.status}
+            onChange={(e) =>
+              setEditedData({ ...editedData, status: e.target.value })
+            }
+          >
+            <option value="1">On Progress</option>
+            <option value="2">Material Preparation</option>
+            <option value="3">Inner Layer Processing</option>
+            <option value="4">Layer Lamination</option>
+            <option value="5">Drilling & Plating</option>
+            <option value="6">Outer Layer Processing</option>
+            <option value="7">Solder Mask & Silkscreen Application</option>
+            <option value="8">Surface Finishing</option>
+            <option value="9">Electrical Testing & Inspection</option>
+            <option value="10">PCB Cutting & Routing</option>
+            <option value="11">Final Inspection & Packaging</option>
+            <option value="12">Completed</option>
+            <option value="0">Pending</option>
+          </Select>
+        </ModalBody>
+        <ModalFooter>
+          <Button layout="link" onClick={closeEditModal}>
+            Cancel
+          </Button>
+          <Button onClick={handleUpdate}>Update</Button>
+        </ModalFooter>
+      </Modal>
       {/* View Modal */}
       <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)}>
         <ModalHeader>View Request Details</ModalHeader>
@@ -354,19 +489,43 @@ function ProjectRequest() {
           </div>
           <div className="flex flex-row">
             <p className="text-sm font-medium">Technician ID: </p>
-            <p className="ml-2">{rowDataToEdit?.technician_id}</p>
+            <p className="ml-2">{rowDataToEdit?.techician_id}</p>
           </div>
           <div className="flex flex-row">
             <p className="text-sm font-medium">Technician Name: </p>
-            <p className="ml-2">{rowDataToEdit?.technician_name}</p>
+            <p className="ml-2">{rowDataToEdit?.techician_name}</p>
+          </div>
+          <div className="flex flex-row">
+            <p className="text-sm font-medium">Manufacturing Budget: </p>
+            <p className="ml-2">{rowDataToEdit?.manufacturing_budget}</p>
           </div>
           <div className="flex flex-row">
             <p className="text-sm font-medium">Manufacturing Status: </p>
             <p className="ml-2">
-              {rowDataToEdit?.manufacturing_status === "2" ? (
+              {rowDataToEdit?.status === "12" ? (
                 <Badge type="success">Completed</Badge>
-              ) : rowDataToEdit?.manufacturing_status === "1" ? (
-                <Badge type="danger">On Progress</Badge>
+              ) : rowDataToEdit?.status === "1" ? (
+                <Badge type="warning">On Progress</Badge>
+              ) : rowDataToEdit?.status === "2" ? (
+                <Badge type="warning">Material Preparation</Badge>
+              ) : rowDataToEdit?.status === "3" ? (
+                <Badge type="warning">Inner Layer Processing</Badge>
+              ) : rowDataToEdit?.status === "4" ? (
+                <Badge type="warning">Layer Lamination</Badge>
+              ) : rowDataToEdit?.status === "5" ? (
+                <Badge type="warning">Drilling & Plating</Badge>
+              ) : rowDataToEdit?.status === "6" ? (
+                <Badge type="warning">Outer Layer Processing</Badge>
+              ) : rowDataToEdit?.status === "7" ? (
+                <Badge type="warning">Solder Mask & Silkscreen Application</Badge>
+              ) : rowDataToEdit?.status === "8" ? (
+                <Badge type="warning">Surface Finishing</Badge>
+              ) : rowDataToEdit?.status === "9" ? (
+                <Badge type="warning">Electrical Testing & Inspection</Badge>
+              ) : rowDataToEdit?.status === "10" ? (
+                <Badge type="warning">PCB Cutting & Routing</Badge>
+              ) : rowDataToEdit?.status === "11" ? (
+                <Badge type="warning">Final Inspection & Packaging</Badge>
               ) : (
                 <Badge type="warning">Pending</Badge>
               )}
@@ -374,27 +533,6 @@ function ProjectRequest() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <>
-            <Button
-              layout="link"
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-              onClick={() =>
-                handleRequestApproval(rowDataToEdit.project_id, "1")
-              }
-            >
-              <p className="text-white">Approve</p>
-            </Button>
-            <Button
-              layout="link"
-              className="bg-red-600 text-white hover:bg-red-700"
-              onClick={() =>
-                handleRequestApproval(rowDataToEdit.project_id, "2")
-              }
-            >
-              <p className="text-white">Reject</p>
-            </Button>
-          </>
-
           <Button
             layout="link"
             className="bg-gray-600 text-white hover:bg-gray-700"

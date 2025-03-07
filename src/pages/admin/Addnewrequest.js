@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Input, Label, Button, Select } from "@windmill/react-ui";
 import PageTitle from "../../components/Typography/PageTitle";
 import { useHistory } from "react-router-dom";
+import axios from "axios";
 
 function ProjectRequestForm() {
   const [formData, setFormData] = useState({
@@ -27,24 +28,85 @@ function ProjectRequestForm() {
     }));
   };
 
-  const handleFileChange = (e) => {
-    const { name, files } = e.target;
-    const file = files[0];
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: file,
-    }));
-  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData);
-    history.push("/app/view-request");
+    const token = localStorage.getItem("token");
+  
+    try {
+      const response = await axios.post(
+        "http://localhost:8080/protected/add-new-project-request",
+        {
+          faculty_id: formData.faculty_id,
+          faculty_name: formData.faculty_name,
+          department: formData.department,
+          project_name: formData.project_name,
+          project_description: formData.project_description,
+          design_tool: formData.design_tool,
+          no_of_students: parseInt(formData.no_of_students),
+          urgency_level: formData.urgency_level,
+          contact: formData.contact,
+          design_file: formData.design_file,  // This should be the uploaded filename
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+  
+      console.log("Response:", response.data);
+      history.push("/app/view-request");
+    } catch (error) {
+      console.error("Error submitting form:", error.response?.data || error);
+    }
   };
+  
 
   const handleCancel = () => {
     history.push("/app/view-request");
   };
+
+  const handlegerberFileChange = async (e) => {
+    const { files } = e.target;
+    const file = files[0];
+    const token = localStorage.getItem("token");
+  
+    if (file) {
+      const fileData = new FormData();
+      fileData.append("UploadGerberFile", file);
+  
+      try {
+        const uploadResponse = await axios.post(
+          "http://localhost:8080/protected/upload-gerber-file",
+          fileData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+  
+        if (uploadResponse.status !== 200) {
+          throw new Error("Failed to upload file");
+        }
+  
+        const { filename } = uploadResponse.data; // Expecting backend to return { filename: "uploaded_file_name" }
+        console.log("Uploaded filename:", filename);
+  
+        setFormData((prevData) => ({
+          ...prevData,
+          design_file: filename, // Store only filename, not the full file object
+        }));
+      } catch (error) {
+        console.error("File upload error:", error);
+      }
+    }
+  };
+  
 
   return (
     <>
@@ -160,7 +222,7 @@ function ProjectRequestForm() {
             className="block w-full mt-1"
             type="file"
             name="design_file"
-            onChange={handleFileChange}
+            onChange={handlegerberFileChange}
           />
         </Label>
 

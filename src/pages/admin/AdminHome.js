@@ -1,87 +1,85 @@
 import React, { useState, useEffect } from "react";
 import InfoCard from "../../components/Cards/InfoCard";
-import ChartCard from "../../components/Chart/ChartCard";
-import {Bar } from "react-chartjs-2";
-import ChartLegend from "../../components/Chart/ChartLegend";
 import PageTitle from "../../components/Typography/PageTitle";
+import SectionTitle from "../../components/Typography/SectionTitle";
 import RoundIcon from "../../components/RoundIcon";
 import { IoMdCodeWorking } from "react-icons/io";
 import { MdOutlinePendingActions } from "react-icons/md";
 import { FaRegCheckCircle } from "react-icons/fa";
 import { RiProgress6Line } from "react-icons/ri";
+import axios from "axios";
+import { CSVLink } from "react-csv";
+import { FaDownload } from "react-icons/fa6";
+import { Button } from "@windmill/react-ui";
 
-export const totalprojectslegends = [
-    { title: 'Total Request', color: 'bg-teal-600' },
-    { title: 'Completed Request', color: 'bg-purple-600' },
-  ]
-  export const costestimationlegends = [
-    { title: 'Budget Requested', color: 'bg-teal-600' },
-    { title: 'Utilized Budget', color: 'bg-purple-600' },
-  ]
 function Dashboard() {
   const [data, setData] = useState([]);
-  const [costestimation, setCostEstimation] = useState([]);
-  const [totalprojectsdata, setTotalProjects] = useState([]);
-  const costestimationdata = {
-    data: {
-      labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-      datasets: [
-        {
-          label: 'Total Budget Request',
-          backgroundColor: '#0694a2',
-          // borderColor: window.chartColors.red,
-          borderWidth: 1,
-          data: [12000, 20000, 25000, 36000, 33000, 40000, 20000],
-        },
-        {
-          label: 'Utilized Budget',
-          backgroundColor: '#7e3af2',
-          // borderColor: window.chartColors.blue,
-          borderWidth: 1,
-          data: [12000, 20000, 12000, 30000, 25000, 30000, 14000],
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-    },
-    legend: {
-      display: false,
-    },
-  }
-  const totalprojects = {
-    data: {
-      labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-      datasets: [
-        {
-          label: 'Total Request',
-          backgroundColor: '#0694a2',
-          // borderColor: window.chartColors.red,
-          borderWidth: 1,
-          data: [25, 20, 12, 36, 33, 40, 20],
-        },
-        {
-          label: 'Completed Request',
-          backgroundColor: '#7e3af2',
-          // borderColor: window.chartColors.blue,
-          borderWidth: 1,
-          data: [25, 20, 1, 12, 25, 30, 14],
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-    },
-    legend: {
-      display: false,
-    },
-  }
+  const [requestdata, setrequestdata] = useState([]);
+  const headers = [
+    { label: "Request ID", key: "req_id" },
+    { label: "Faculty ID", key: "faculty_id" },
+    { label: "Faculty Name", key: "faculty_name" },
+    { label: "Department", key: "department" },
+    { label: "Project Name", key: "project_name" },
+    { label: "Project Description", key: "project_description" },
+    { label: "Design Tool", key: "design_tool" },
+    { label: "No. of Students", key: "number_of_students" },
+    { label: "Urgency Level", key: "urgency_level" },
+    { label: "Contact", key: "contact" },
+    { label: "Design File", key: "design_file" },
+    { label: "Manufacturing Budget", key: "manufacturing_budget" },
+    { label: "Status", key: "req_status" },
+  ];
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:8080/protected/bulk-action-data",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        if(response.data!==null){
+          setrequestdata(response.data);
+        }
+        else{
+          setrequestdata([]);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:8080/protected/getadmin-home-data",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        setData(response.data);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchData();
+  }, []);
+
   return (
     <>
       <PageTitle>Home Page</PageTitle>
 
       <div className="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
-        <InfoCard title="Total Projects" value="63">
+        <InfoCard title="Total Projects" value={data.total_projects}>
           <RoundIcon
             icon={IoMdCodeWorking}
             iconColorClass="text-orange-500 dark:text-orange-100"
@@ -90,7 +88,7 @@ function Dashboard() {
           />
         </InfoCard>
 
-        <InfoCard title="Pending Projects" value="46">
+        <InfoCard title="Pending Projects" value={data.pending_projects}>
           <RoundIcon
             icon={MdOutlinePendingActions}
             iconColorClass="text-green-500 dark:text-green-100"
@@ -99,7 +97,7 @@ function Dashboard() {
           />
         </InfoCard>
 
-        <InfoCard title="Project In Progress" value="37">
+        <InfoCard title="Project In Progress" value={data.progress_project}>
           <RoundIcon
             icon={RiProgress6Line}
             iconColorClass="text-blue-500 dark:text-blue-100"
@@ -108,7 +106,7 @@ function Dashboard() {
           />
         </InfoCard>
 
-        <InfoCard title="Completed Projects" value="35">
+        <InfoCard title="Completed Projects" value={data.completed_project}>
           <RoundIcon
             icon={FaRegCheckCircle}
             iconColorClass="text-teal-500 dark:text-teal-100"
@@ -117,18 +115,25 @@ function Dashboard() {
           />
         </InfoCard>
       </div>
-
-      <PageTitle>Analytics</PageTitle>
-      <div className="grid gap-6 mb-8 md:grid-cols-2">
-        <ChartCard title="Cost Estimation">
-            <Bar {...costestimationdata} />
-          <ChartLegend legends={costestimationlegends} />
-        </ChartCard>
-        <ChartCard title="Total Projects">
-            <Bar {...totalprojects} />
-          <ChartLegend legends={totalprojectslegends} />
-        </ChartCard>
-      </div>
+      <SectionTitle>Download Bulk Action Data</SectionTitle>
+      <CSVLink
+        data={requestdata.map((request) => ({
+          ...request,
+          status:
+            request.req_status === "1"
+              ? "Approved"
+              : request.req_status === "2"
+              ? "Rejected"
+              : "Pending",
+        }))}
+        headers={headers}
+        filename="Project-Data.csv"
+        className="ml-4"
+      >
+        <Button size="large">
+          <FaDownload size={20} className="mr-2" /> Export
+        </Button>
+      </CSVLink>
     </>
   );
 }

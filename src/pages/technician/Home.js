@@ -18,37 +18,75 @@ import {
   Badge,
   Pagination,
 } from "@windmill/react-ui";
+import axios from "axios";
 
-const RecentTasks = [
-  {
-    projectid: "P1001",
-    projectname: "Project 1",
-    projectdescription: "Project 1 Description",
-    urgencylevel: "High",
-    contact: "John Doe",
-  },
-];
+
 function Dashboard() {
-  const [data, setData] = useState(RecentTasks);
+  const [data, setData] = useState([]);
   const [page, setPage] = useState(1);
-
+  const [cardData, setCardData] = useState([]);
   const resultsPerPage = 5;
-  const totalResults = RecentTasks.length;
+  const totalResults = data.length||0;
+  const faculty_id = localStorage.getItem("facultyID");
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.post("http://localhost:8080/protected/get-technician-recentdata",{
+          technician_id: faculty_id,
+        }, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          }
+        });
+        if(response.data!==null){
+          setData(response.data);
+        }
+        else{
+          setData([]);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    fetchData();
+  }, []);
 
   function onPageChange(p) {
     setPage(p);
   }
   useEffect(() => {
     setData(
-      RecentTasks.slice((page - 1) * resultsPerPage, page * resultsPerPage)
+      data.slice((page - 1) * resultsPerPage, page * resultsPerPage)
     );
   }, [page]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.post(
+          "http://localhost:8080/protected/get-technician-homedata",{
+            technician_id: localStorage.getItem("facultyID"),
+          },{
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            }
+          }
+        );
+        setCardData(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    fetchData();
+  }, []);
+
   return (
     <>
       <PageTitle>Home Page</PageTitle>
 
       <div className="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
-        <InfoCard title="Total Projects" value="63">
+        <InfoCard title="Total Projects" value={cardData.total_projects}>
           <RoundIcon
             icon={IoMdCodeWorking}
             iconColorClass="text-orange-500 dark:text-orange-100"
@@ -57,7 +95,7 @@ function Dashboard() {
           />
         </InfoCard>
 
-        <InfoCard title="Pending Projects" value="46">
+        <InfoCard title="Pending Projects" value={cardData.pending_projects}>
           <RoundIcon
             icon={MdOutlinePendingActions}
             iconColorClass="text-green-500 dark:text-green-100"
@@ -65,17 +103,15 @@ function Dashboard() {
             className="mr-4"
           />
         </InfoCard>
-
-        <InfoCard title="Project In Progress" value="37">
+        <InfoCard title="Projects On Progress" value={cardData.project_progress}>
           <RoundIcon
             icon={RiProgress6Line}
-            iconColorClass="text-blue-500 dark:text-blue-100"
-            bgColorClass="bg-blue-100 dark:bg-blue-500"
+            iconColorClass="text-teal-500 dark:text-teal-100"
+            bgColorClass="bg-teal-100 dark:bg-teal-500"
             className="mr-4"
           />
         </InfoCard>
-
-        <InfoCard title="Completed Projects" value="35">
+        <InfoCard title="Completed Projects" value={cardData.completed_projects}>
           <RoundIcon
             icon={FaRegCheckCircle}
             iconColorClass="text-teal-500 dark:text-teal-100"
@@ -92,7 +128,6 @@ function Dashboard() {
               <TableCell>S No</TableCell>
               <TableCell>Project ID</TableCell>
               <TableCell>Project Name</TableCell>
-              <TableCell>Project Description</TableCell>
               <TableCell>Urgency Level</TableCell>
               <TableCell>Contact</TableCell>
             </tr>
@@ -101,13 +136,12 @@ function Dashboard() {
             {data.map((user, i) => (
               <TableRow key={i}>
                 <TableCell>{i + 1}</TableCell>
-                <TableCell>{user.projectid}</TableCell>
-                <TableCell>{user.projectname}</TableCell>
-                <TableCell>{user.projectdescription}</TableCell>
+                <TableCell>{user.project_id}</TableCell>
+                <TableCell>{user.project_name}</TableCell>
                 <TableCell>
-                  {user.urgencylevel === "High" ? (
+                  {user.urgency_level === "High" ? (
                     <Badge type="danger">High</Badge>
-                  ) : user.urgencylevel === "Medium" ? (
+                  ) : user.urgency_level === "Medium" ? (
                     <Badge type="success">Medium</Badge>
                   ) : (
                     <Badge type="warning">Low</Badge>

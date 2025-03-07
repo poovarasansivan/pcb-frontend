@@ -6,37 +6,35 @@ import { IoMdCodeWorking } from "react-icons/io";
 import { MdOutlinePendingActions } from "react-icons/md";
 import { FaRegCheckCircle } from "react-icons/fa";
 import { RiProgress6Line } from "react-icons/ri";
+import axios from "axios";
 
-const RecentTasks = [
-  {
-    projectid: "P1001",
-    projectname: "Project 1",
-    projectdescription: "Project 1 Description",
-    urgencylevel: "High",
-    contact: "John Doe",
-  },
-];
 function Dashboard() {
-  const [data, setData] = useState(RecentTasks);
-  const [page, setPage] = useState(1);
+  const [data, setData] = useState([]);
 
-  const resultsPerPage = 5;
-  const totalResults = RecentTasks.length;
-
-  function onPageChange(p) {
-    setPage(p);
-  }
   useEffect(() => {
-    setData(
-      RecentTasks.slice((page - 1) * resultsPerPage, page * resultsPerPage)
-    );
-  }, [page]);
+    const fetchData = async () => {
+      try {
+        const response = await axios.post("http://localhost:8080/protected/get-users-homedata",{
+          faculty_id: localStorage.getItem("facultyID"),
+        },{
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          }
+        })
+        setData(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    fetchData();
+  }, []);
+  console.log(data);
   return (
     <>
       <PageTitle>Home Page</PageTitle>
 
       <div className="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
-        <InfoCard title="Total Projects" value="6">
+        <InfoCard title="Total Projects" value={data.total_projects}>
           <RoundIcon
             icon={IoMdCodeWorking}
             iconColorClass="text-orange-500 dark:text-orange-100"
@@ -45,7 +43,7 @@ function Dashboard() {
           />
         </InfoCard>
 
-        <InfoCard title="Pending Projects" value="4">
+        <InfoCard title="Pending Projects" value={data.pending_projects}>
           <RoundIcon
             icon={MdOutlinePendingActions}
             iconColorClass="text-green-500 dark:text-green-100"
@@ -54,7 +52,7 @@ function Dashboard() {
           />
         </InfoCard>
 
-        <InfoCard title="Project In Progress" value="2">
+        <InfoCard title="Project In Progress" value={data.project_in_progress}>
           <RoundIcon
             icon={RiProgress6Line}
             iconColorClass="text-blue-500 dark:text-blue-100"
@@ -63,7 +61,7 @@ function Dashboard() {
           />
         </InfoCard>
 
-        <InfoCard title="Completed Projects" value="3">
+        <InfoCard title="Completed Projects" value={data.completed_projects}>
           <RoundIcon
             icon={FaRegCheckCircle}
             iconColorClass="text-teal-500 dark:text-teal-100"

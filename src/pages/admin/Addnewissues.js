@@ -3,6 +3,7 @@ import { Input, Label, Button, Select } from "@windmill/react-ui";
 import { FaUser } from "react-icons/fa";
 import PageTitle from "../../components/Typography/PageTitle";
 import { useHistory } from "react-router-dom";
+import axios from "axios";
 
 function Addnewusers() {
   const [formData, setFormData] = useState({
@@ -22,11 +23,30 @@ function Addnewusers() {
       [name]: value,
     }));
   };
-
+  const token = localStorage.getItem("token");
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData);
-    history.push("/app/view-issues");
+    try {
+        await axios.post(
+          "http://localhost:8080/protected/add-issues",
+          {
+            project_id: formData.projectid,
+            project_name: formData.projectname,
+            technician_id: formData.technicianid,
+            technician_name: formData.technicianname,
+            issues: formData.issues,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        history.push("/app/view-issues");
+    } catch (error) {
+      console.log("Error adding new issue:", error);
+    }
   };
 
   const handleCancel = () => {
